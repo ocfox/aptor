@@ -1,0 +1,75 @@
+{
+  "listen": "127.0.0.1:8080",
+  "profiles": [
+    {
+      "name": "full",
+      "secret_key": "YOUR_SECRET_KEY_1",
+      "subscriptions": [
+        "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN"
+      ],
+      "custom_nodes": [
+        {
+          "type": "vless",
+          "tag": "my-vless",
+          "server": "1.2.3.4",
+          "server_port": 443,
+          "uuid": "00000000-0000-0000-0000-000000000000",
+          "flow": "xtls-rprx-vision",
+          "packet_encoding": "xudp",
+          "tls": {
+            "enabled": true,
+            "server_name": "example.com",
+            "utls": {
+              "enabled": true,
+              "fingerprint": "chrome"
+            },
+            "reality": {
+              "enabled": true,
+              "public_key": "YOUR_REALITY_PUBLIC_KEY",
+              "short_id": "00000000"
+            }
+          }
+        },
+        {
+          "type": "vmess",
+          "tag": "my-vmess",
+          "server": "1.2.3.5",
+          "server_port": 8080,
+          "uuid": "00000000-0000-0000-0000-000000000000",
+          "security": "auto",
+          "alter_id": 0,
+          "packet_encoding": "xudp",
+          "transport": {
+            "type": "ws",
+            "path": "/ws",
+            "headers": {
+              "Host": "example.com"
+            }
+          }
+        },
+        {
+          "type": "hysteria2",
+          "tag": "my-hy2",
+          "server": "1.2.3.6",
+          "server_ports": [
+            "20000:50000"
+          ],
+          "hop_interval": "15s",
+          "password": "YOUR_HYSTERIA2_PASSWORD",
+          "tls": {
+            "enabled": true,
+            "server_name": "example.com",
+            "insecure": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "sub-only",
+      "secret_key": "YOUR_SECRET_KEY_2",
+      "subscriptions": [
+        "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN"
+      ]
+    }
+  ]
+}
