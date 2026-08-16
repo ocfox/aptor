@@ -53,6 +53,7 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 	tagCounts := make(map[string]int)
 
 	for _, node := range allNodes {
+		node["routing_mark"] = 255
 		tag, _ := node["tag"].(string)
 		if tag == "" {
 			continue
@@ -82,7 +83,7 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 		map[string]any{"type": "selector", "tag": "AI", "outbounds": []string{defNode, "Proxy"}, "default": defNode},
 		map[string]any{"type": "selector", "tag": "Others", "outbounds": []string{"Proxy", "direct"}},
 		map[string]any{"type": "selector", "tag": "CN", "outbounds": []string{"direct", "Proxy"}},
-		map[string]any{"type": "direct", "tag": "direct"},
+		map[string]any{"type": "direct", "tag": "direct", "routing_mark": 255},
 		map[string]any{"type": "block", "tag": "block"},
 	}, toAnySlice(allNodes)...)
 
