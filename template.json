@@ -207,7 +207,7 @@
         "outbound": "CN"
       }
     ],
-    "final": "Others",
+    "final": "Proxy",
     "auto_detect_interface": true,
     "find_process": true
   },
