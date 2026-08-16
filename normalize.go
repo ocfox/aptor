@@ -48,8 +48,12 @@ func NormalizeNodes(nodes []map[string]any) []map[string]any {
 
 		key := reg + "-" + protoCode
 		counters[key]++
-		node["tag"] = fmt.Sprintf("%s-%02d", key, counters[key])
-		clean = append(clean, node)
+		cleanNode := make(map[string]any, len(node))
+		for k, v := range node {
+			cleanNode[k] = v
+		}
+		cleanNode["tag"] = fmt.Sprintf("%s-%02d", key, counters[key])
+		clean = append(clean, cleanNode)
 	}
 	return clean
 }

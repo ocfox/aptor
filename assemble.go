@@ -49,13 +49,15 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 
 	// 2. Nodes & Tags
 	isTproxy := strings.ToLower(mode) == "tproxy"
-	allNodes := append(custom, NormalizeNodes(sub)...)
+	allNodes := append(cloneNodes(custom), NormalizeNodes(sub)...)
 	var tags []string
 	tagCounts := make(map[string]int)
 
 	for _, node := range allNodes {
 		if isTproxy {
 			node["routing_mark"] = 255
+		} else {
+			delete(node, "routing_mark")
 		}
 		tag, _ := node["tag"].(string)
 		if tag == "" {
@@ -102,6 +104,18 @@ func toAnySlice(nodes []map[string]any) []any {
 	res := make([]any, len(nodes))
 	for i, n := range nodes {
 		res[i] = n
+	}
+	return res
+}
+
+func cloneNodes(nodes []map[string]any) []map[string]any {
+	res := make([]map[string]any, len(nodes))
+	for i, n := range nodes {
+		clone := make(map[string]any, len(n))
+		for k, v := range n {
+			clone[k] = v
+		}
+		res[i] = clone
 	}
 	return res
 }
