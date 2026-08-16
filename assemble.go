@@ -48,12 +48,15 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 	}
 
 	// 2. Nodes & Tags
+	isTproxy := strings.ToLower(mode) == "tproxy"
 	allNodes := append(custom, NormalizeNodes(sub)...)
 	var tags []string
 	tagCounts := make(map[string]int)
 
 	for _, node := range allNodes {
-		node["routing_mark"] = 255
+		if isTproxy {
+			node["routing_mark"] = 255
+		}
 		tag, _ := node["tag"].(string)
 		if tag == "" {
 			continue
@@ -77,13 +80,18 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 		defNode = tags[0]
 	}
 
+	directOut := map[string]any{"type": "direct", "tag": "direct"}
+	if isTproxy {
+		directOut["routing_mark"] = 255
+	}
+
 	// 3. Outbounds (Proxy -> AI -> Others -> CN -> direct -> block -> nodes)
 	config["outbounds"] = append([]any{
 		map[string]any{"type": "selector", "tag": "Proxy", "outbounds": append(tags, "direct"), "default": defNode},
 		map[string]any{"type": "selector", "tag": "AI", "outbounds": []string{defNode, "Proxy"}, "default": defNode},
 		map[string]any{"type": "selector", "tag": "Others", "outbounds": []string{"Proxy", "direct"}},
 		map[string]any{"type": "selector", "tag": "CN", "outbounds": []string{"direct", "Proxy"}},
-		map[string]any{"type": "direct", "tag": "direct", "routing_mark": 255},
+		directOut,
 		map[string]any{"type": "block", "tag": "block"},
 	}, toAnySlice(allNodes)...)
 
