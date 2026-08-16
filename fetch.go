@@ -51,6 +51,19 @@ func FetchSubscription(url string) ([]map[string]any, error) {
 	if err := json.Unmarshal(body, &arr); err == nil {
 		return arr, nil
 	}
+
+	// 3. Try Base64 Encoded URI links (e.g. Remnawave, V2Ray subscriptions)
+	if decoded, err := decodeBase64Flexible(string(body)); err == nil {
+		if nodes := ParseURIs(string(decoded)); len(nodes) > 0 {
+			return nodes, nil
+		}
+	}
+
+	// 4. Try Plain Text URI links (line by line)
+	if nodes := ParseURIs(string(body)); len(nodes) > 0 {
+		return nodes, nil
+	}
+
 	return nil, fmt.Errorf("invalid subscription format from %s", url)
 }
 
