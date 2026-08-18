@@ -31,9 +31,10 @@ func NormalizeNodes(nodes []map[string]any) []map[string]any {
 		}
 
 		protoCode := proto
-		if proto == "hysteria2" {
+		switch proto {
+		case "hysteria2":
 			protoCode = "hy2"
-		} else if proto == "shadowsocks" {
+		case "shadowsocks":
 			protoCode = "ss"
 		}
 

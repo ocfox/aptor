@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -23,7 +22,7 @@ func FetchSubscription(url string) ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s: %s", url, resp.Status)
@@ -67,34 +66,55 @@ func FetchSubscription(url string) ([]map[string]any, error) {
 	return nil, fmt.Errorf("invalid subscription format from %s", url)
 }
 
-func FetchAll(urls []string) ([]map[string]any, error) {
+func FetchSubscriptions(subs []Subscription) ([]map[string]any, error) {
 	var (
-		wg      sync.WaitGroup
-		mu      sync.Mutex
-		nodes   []map[string]any
-		lastErr error
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		allNodes []map[string]any
+		lastErr  error
 	)
 
-	for _, u := range urls {
+	for _, s := range subs {
 		wg.Add(1)
-		go func(url string) {
+		go func(sub Subscription) {
 			defer wg.Done()
-			n, err := FetchSubscription(url)
+			rawNodes, err := FetchSubscription(sub.URL)
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
 				lastErr = err
 			} else {
-				nodes = append(nodes, n...)
+				nodes := cloneNodes(rawNodes)
+				for _, n := range nodes {
+					if sub.TagPrefix != "" {
+						if t, ok := n["tag"].(string); ok && t != "" {
+							n["tag"] = sub.TagPrefix + t
+						}
+					}
+					if len(sub.Groups) > 0 {
+						n["_groups"] = sub.Groups
+					} else {
+						n["_groups"] = []string{"Proxy"}
+					}
+				}
+				allNodes = append(allNodes, nodes...)
 			}
-		}(u)
+		}(s)
 	}
 	wg.Wait()
 
-	if len(nodes) == 0 && lastErr != nil {
+	if len(allNodes) == 0 && lastErr != nil {
 		return nil, lastErr
 	}
-	return nodes, nil
+	return allNodes, nil
+}
+
+func FetchAll(urls []string) ([]map[string]any, error) {
+	subs := make([]Subscription, len(urls))
+	for i, u := range urls {
+		subs[i] = Subscription{URL: u, Groups: []string{"Proxy"}}
+	}
+	return FetchSubscriptions(subs)
 }
 
 type Cache struct {
@@ -116,34 +136,71 @@ func NewCache(ttl time.Duration) *Cache {
 	}
 }
 
-func (c *Cache) Get(urls []string) ([]map[string]any, error) {
-	key := strings.Join(urls, "|")
-	c.mu.RLock()
-	e, ok := c.entries[key]
-	c.mu.RUnlock()
+func (c *Cache) Get(subs []Subscription) ([]map[string]any, error) {
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		allNodes []map[string]any
+		lastErr  error
+	)
 
-	if ok && time.Now().Before(e.exp) {
-		return e.nodes, nil
+	for _, s := range subs {
+		wg.Add(1)
+		go func(sub Subscription) {
+			defer wg.Done()
+
+			c.mu.RLock()
+			e, ok := c.entries[sub.URL]
+			c.mu.RUnlock()
+
+			var rawNodes []map[string]any
+			if ok && time.Now().Before(e.exp) {
+				rawNodes = e.nodes
+			} else {
+				fetched, err := FetchSubscription(sub.URL)
+				if err != nil {
+					if ok && len(e.nodes) > 0 {
+						rawNodes = e.nodes
+					} else {
+						mu.Lock()
+						lastErr = err
+						mu.Unlock()
+						return
+					}
+				} else {
+					rawNodes = fetched
+					c.mu.Lock()
+					c.entries[sub.URL] = struct {
+						nodes []map[string]any
+						exp   time.Time
+					}{nodes: fetched, exp: time.Now().Add(c.ttl)}
+					c.mu.Unlock()
+				}
+			}
+
+			nodes := cloneNodes(rawNodes)
+			for _, n := range nodes {
+				if sub.TagPrefix != "" {
+					if t, ok := n["tag"].(string); ok && t != "" {
+						n["tag"] = sub.TagPrefix + t
+					}
+				}
+				if len(sub.Groups) > 0 {
+					n["_groups"] = sub.Groups
+				} else {
+					n["_groups"] = []string{"Proxy"}
+				}
+			}
+
+			mu.Lock()
+			allNodes = append(allNodes, nodes...)
+			mu.Unlock()
+		}(s)
 	}
+	wg.Wait()
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if e, ok = c.entries[key]; ok && time.Now().Before(e.exp) {
-		return e.nodes, nil
+	if len(allNodes) == 0 && lastErr != nil {
+		return nil, lastErr
 	}
-
-	nodes, err := FetchAll(urls)
-	if err != nil {
-		if ok && len(e.nodes) > 0 {
-			return e.nodes, nil
-		}
-		return nil, err
-	}
-
-	c.entries[key] = struct {
-		nodes []map[string]any
-		exp   time.Time
-	}{nodes: nodes, exp: time.Now().Add(c.ttl)}
-	return nodes, nil
+	return allNodes, nil
 }

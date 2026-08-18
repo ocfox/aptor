@@ -9,10 +9,35 @@ import (
 	"os/exec"
 )
 
+type Subscription struct {
+	URL       string   `json:"url"`
+	TagPrefix string   `json:"tag_prefix,omitempty"`
+	Groups    []string `json:"groups,omitempty"`
+}
+
+func (s *Subscription) UnmarshalJSON(data []byte) error {
+	var rawStr string
+	if err := json.Unmarshal(data, &rawStr); err == nil {
+		s.URL = rawStr
+		s.Groups = []string{"Proxy"}
+		return nil
+	}
+	type Alias Subscription
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*s = Subscription(alias)
+	if len(s.Groups) == 0 {
+		s.Groups = []string{"Proxy"}
+	}
+	return nil
+}
+
 type Profile struct {
 	Name          string           `json:"name,omitempty"`
 	SecretKey     string           `json:"secret_key"`
-	Subscriptions []string         `json:"subscriptions"`
+	Subscriptions []Subscription   `json:"subscriptions"`
 	CustomNodes   []map[string]any `json:"custom_nodes,omitempty"`
 	TemplatePath  string           `json:"template_path,omitempty"`
 	InboundMode   string           `json:"inbound_mode,omitempty"`
@@ -23,7 +48,7 @@ type Config struct {
 	TemplatePath  string           `json:"template_path,omitempty"`
 	Profiles      []Profile        `json:"profiles,omitempty"`
 	SecretKey     string           `json:"secret_key,omitempty"`
-	Subscriptions []string         `json:"subscriptions,omitempty"`
+	Subscriptions []Subscription   `json:"subscriptions,omitempty"`
 	CustomNodes   []map[string]any `json:"custom_nodes,omitempty"`
 	InboundMode   string           `json:"inbound_mode,omitempty"`
 	Output        string           `json:"output,omitempty"`
@@ -72,7 +97,7 @@ func runServer(args []string) {
 		fmt.Fprintf(os.Stderr, "Usage: aptor server [--config FILE] [--listen ADDR]\n\n")
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	cfg := &Config{}
 	if *configPath != "" {
@@ -106,7 +131,7 @@ func runGenerate(args []string) {
 		fmt.Fprintf(os.Stderr, "       aptor server [--config FILE] [--listen ADDR]\n\n")
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	cfg := &Config{}
 	if *configPath != "" {
@@ -136,7 +161,7 @@ func runGenerate(args []string) {
 	}
 
 	if *subURL != "" {
-		profile.Subscriptions = []string{*subURL}
+		profile.Subscriptions = []Subscription{{URL: *subURL, Groups: []string{"Proxy"}}}
 	}
 	if *templatePath != "" {
 		profile.TemplatePath = *templatePath
@@ -158,7 +183,7 @@ func runGenerate(args []string) {
 	}
 
 	fmt.Printf("[aptor] [%s] fetching subscriptions...\n", profile.Name)
-	nodes, err := FetchAll(profile.Subscriptions)
+	nodes, err := FetchSubscriptions(profile.Subscriptions)
 	if err != nil {
 		log.Fatalf("[fatal] fetch failed: %v", err)
 	}
@@ -177,7 +202,7 @@ func runGenerate(args []string) {
 	}
 
 	if outFile == "-" {
-		os.Stdout.Write(out)
+		_, _ = os.Stdout.Write(out)
 		return
 	}
 

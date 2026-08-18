@@ -50,7 +50,8 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 	// 2. Nodes & Tags
 	isTproxy := strings.ToLower(mode) == "tproxy"
 	allNodes := append(cloneNodes(custom), NormalizeNodes(sub)...)
-	var tags []string
+	var allTags []string
+	groupTags := make(map[string][]string)
 	tagCounts := make(map[string]int)
 
 	for _, node := range allNodes {
@@ -59,6 +60,29 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 		} else {
 			delete(node, "routing_mark")
 		}
+
+		var groups []string
+		if gList, ok := node["_groups"].([]string); ok && len(gList) > 0 {
+			groups = gList
+		} else if gAny, ok := node["_groups"].([]any); ok && len(gAny) > 0 {
+			for _, g := range gAny {
+				if gs, ok := g.(string); ok && gs != "" {
+					groups = append(groups, gs)
+				}
+			}
+		} else if gCustom, ok := node["groups"].([]any); ok && len(gCustom) > 0 {
+			for _, g := range gCustom {
+				if gs, ok := g.(string); ok && gs != "" {
+					groups = append(groups, gs)
+				}
+			}
+		}
+		if len(groups) == 0 {
+			groups = []string{"Proxy"}
+		}
+		delete(node, "_groups")
+		delete(node, "groups")
+
 		tag, _ := node["tag"].(string)
 		if tag == "" {
 			continue
@@ -68,18 +92,37 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 			node["tag"] = tag
 		}
 		tagCounts[tag]++
-		tags = append(tags, tag)
+		allTags = append(allTags, tag)
+
+		for _, g := range groups {
+			groupTags[g] = append(groupTags[g], tag)
+		}
+	}
+
+	proxyTags := groupTags["Proxy"]
+	if len(proxyTags) == 0 {
+		proxyTags = allTags
 	}
 
 	defNode := "direct"
-	for _, t := range tags {
+	for _, t := range proxyTags {
 		if t == "light" {
 			defNode = "light"
 			break
 		}
 	}
-	if defNode == "direct" && len(tags) > 0 {
-		defNode = tags[0]
+	if defNode == "direct" && len(proxyTags) > 0 {
+		defNode = proxyTags[0]
+	}
+
+	var aiOutbounds []string
+	var aiDef string
+	if aiTags := groupTags["AI"]; len(aiTags) > 0 {
+		aiOutbounds = append(append([]string{}, aiTags...), "Proxy", "direct")
+		aiDef = aiTags[0]
+	} else {
+		aiOutbounds = []string{defNode, "Proxy"}
+		aiDef = defNode
 	}
 
 	directOut := map[string]any{"type": "direct", "tag": "direct"}
@@ -89,8 +132,8 @@ func Assemble(templatePath, mode string, custom, sub []map[string]any) ([]byte, 
 
 	// 3. Outbounds (Proxy -> AI -> Others -> CN -> direct -> block -> nodes)
 	config["outbounds"] = append([]any{
-		map[string]any{"type": "selector", "tag": "Proxy", "outbounds": append(tags, "direct"), "default": defNode},
-		map[string]any{"type": "selector", "tag": "AI", "outbounds": []string{defNode, "Proxy"}, "default": defNode},
+		map[string]any{"type": "selector", "tag": "Proxy", "outbounds": append(append([]string{}, proxyTags...), "direct"), "default": defNode},
+		map[string]any{"type": "selector", "tag": "AI", "outbounds": aiOutbounds, "default": aiDef},
 		map[string]any{"type": "selector", "tag": "Others", "outbounds": []string{"Proxy", "direct"}},
 		map[string]any{"type": "selector", "tag": "CN", "outbounds": []string{"direct", "Proxy"}},
 		directOut,

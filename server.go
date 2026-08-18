@@ -27,7 +27,7 @@ func StartServer(cfg *Config) error {
 		path := strings.Trim(r.URL.Path, "/")
 
 		if path == "health" || path == "healthz" {
-			w.Write([]byte("OK\n"))
+			_, _ = w.Write([]byte("OK\n"))
 			return
 		}
 
@@ -82,7 +82,7 @@ func StartServer(cfg *Config) error {
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		w.Write(out)
+		_, _ = w.Write(out)
 
 		log.Printf("[http] %s %s 200 OK (%s) [profile: %s, mode: %s, nodes: %d]",
 			r.Method, r.URL.Path, time.Since(start), profile.Name, mode, len(nodes)+len(profile.CustomNodes))

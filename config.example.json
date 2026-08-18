@@ -68,7 +68,15 @@
       "name": "sub-only",
       "secret_key": "YOUR_SECRET_KEY_2",
       "subscriptions": [
-        "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN"
+        "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN",
+        {
+          "url": "https://example.com/api/v1/ai-subscription",
+          "tag_prefix": "AI-",
+          "groups": [
+            "AI",
+            "Proxy"
+          ]
+        }
       ]
     }
   ]
