@@ -1,4 +1,4 @@
-import { SubscriptionInput, NormalizedSubscription } from './types';
+import { SubscriptionInput, NormalizedSubscription, RelayConfig } from './types';
 import { parseSubscriptionContent } from './parser';
 
 export function normalizeSubscription(sub: SubscriptionInput): NormalizedSubscription {
@@ -12,11 +12,9 @@ export function normalizeSubscription(sub: SubscriptionInput): NormalizedSubscri
   };
 }
 
-export async function fetchSubscription(sub: NormalizedSubscription): Promise<Record<string, any>[]> {
-  const res = await fetch(sub.url, {
-    headers: {
-      'User-Agent': 'sing-box',
-    },
+async function doFetch(url: string, headers: Record<string, string>): Promise<string> {
+  const res = await fetch(url, {
+    headers,
     cf: {
       cacheTtl: 600,
       cacheEverything: true,
@@ -24,10 +22,50 @@ export async function fetchSubscription(sub: NormalizedSubscription): Promise<Re
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch ${sub.url}: ${res.status} ${res.statusText}`);
+    throw new Error(`HTTP ${res.status} ${res.statusText}`);
   }
 
-  const text = await res.text();
+  return res.text();
+}
+
+export async function fetchSubscription(
+  sub: NormalizedSubscription,
+  relay?: RelayConfig
+): Promise<Record<string, any>[]> {
+  let text = '';
+  let directError: Error | null = null;
+
+  // 1. Attempt direct fetch first from Cloudflare edge
+  try {
+    text = await doFetch(sub.url, { 'User-Agent': 'sing-box' });
+  } catch (err: any) {
+    directError = err;
+  }
+
+  // 2. If direct fetch fails and relay is configured, fallback to relay
+  if (!text && relay?.url) {
+    try {
+      const target = new URL(sub.url);
+      const relayReq = new URL(relay.url);
+      relayReq.pathname = target.pathname;
+      relayReq.search = target.search;
+
+      const headers: Record<string, string> = {
+        'User-Agent': 'sing-box',
+        'X-Target-Host': target.host,
+      };
+      if (relay.token) {
+        headers['Authorization'] = `Bearer ${relay.token}`;
+      }
+
+      text = await doFetch(relayReq.toString(), headers);
+    } catch (relayErr: any) {
+      throw new Error(`Failed to fetch ${sub.url} (Direct: ${directError?.message}, Relay: ${relayErr.message})`);
+    }
+  } else if (!text && directError) {
+    throw directError;
+  }
+
   const rawNodes = parseSubscriptionContent(text);
 
   return rawNodes.map(node => {
@@ -44,10 +82,13 @@ export async function fetchSubscription(sub: NormalizedSubscription): Promise<Re
 }
 
 export async function fetchSubscriptions(
-  subscriptions: SubscriptionInput[]
+  subscriptions: SubscriptionInput[],
+  relay?: RelayConfig
 ): Promise<Record<string, any>[]> {
   const normalized = subscriptions.map(normalizeSubscription);
-  const results = await Promise.allSettled(normalized.map(fetchSubscription));
+  const results = await Promise.allSettled(
+    normalized.map(sub => fetchSubscription(sub, relay))
+  );
 
   const allNodes: Record<string, any>[] = [];
   let lastError: Error | null = null;

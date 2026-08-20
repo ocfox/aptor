@@ -1,5 +1,5 @@
 import rawConfig from '../config.json';
-import { Env, Profile } from './types';
+import { Env, Profile, RelayConfig } from './types';
 import { fetchSubscriptions } from './fetcher';
 import { assemble } from './assemble';
 
@@ -20,7 +20,13 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function normalizeConfig(raw: any): { profiles: Profile[]; template?: Record<string, any> } {
+interface NormalizedAppConfig {
+  relay?: RelayConfig;
+  profiles: Profile[];
+  template?: Record<string, any>;
+}
+
+function normalizeConfig(raw: any): NormalizedAppConfig {
   let rawProfiles: Profile[] = [];
 
   if (Array.isArray(raw)) {
@@ -45,6 +51,7 @@ function normalizeConfig(raw: any): { profiles: Profile[]; template?: Record<str
   }));
 
   return {
+    relay: raw?.relay,
     profiles,
     template: raw?.template,
   };
@@ -97,10 +104,11 @@ export default {
     }
 
     const targetMode = mode || profile.inbound_mode || 'tun';
+    const relay = profile.relay || appConfig.relay;
 
     // 4. Fetch subscriptions & assemble sing-box configuration
     try {
-      const subNodes = await fetchSubscriptions(profile.subscriptions || []);
+      const subNodes = await fetchSubscriptions(profile.subscriptions || [], relay);
       const output = assemble({
         template: profile.template || appConfig.template,
         mode: targetMode,
