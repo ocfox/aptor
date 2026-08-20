@@ -1,4 +1,7 @@
+node_modules/
+dist/
+.wrangler/
+.wrangler-local/
 config.json
-aptor
 result
 result-*

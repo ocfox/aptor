@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aptor",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-20",
+  "route": {
+    "custom_domain": true,
+    "pattern": "aptor.s4r.in"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

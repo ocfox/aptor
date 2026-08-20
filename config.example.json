@@ -1,72 +1,7 @@
 {
-  "listen": "127.0.0.1:8080",
-  "profiles": [
-    {
-      "name": "full",
-      "secret_key": "YOUR_SECRET_KEY_1",
-      "subscriptions": [
-        "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN"
-      ],
-      "custom_nodes": [
-        {
-          "type": "vless",
-          "tag": "my-vless",
-          "server": "1.2.3.4",
-          "server_port": 443,
-          "uuid": "00000000-0000-0000-0000-000000000000",
-          "flow": "xtls-rprx-vision",
-          "packet_encoding": "xudp",
-          "tls": {
-            "enabled": true,
-            "server_name": "example.com",
-            "utls": {
-              "enabled": true,
-              "fingerprint": "chrome"
-            },
-            "reality": {
-              "enabled": true,
-              "public_key": "YOUR_REALITY_PUBLIC_KEY",
-              "short_id": "00000000"
-            }
-          }
-        },
-        {
-          "type": "vmess",
-          "tag": "my-vmess",
-          "server": "1.2.3.5",
-          "server_port": 8080,
-          "uuid": "00000000-0000-0000-0000-000000000000",
-          "security": "auto",
-          "alter_id": 0,
-          "packet_encoding": "xudp",
-          "transport": {
-            "type": "ws",
-            "path": "/ws",
-            "headers": {
-              "Host": "example.com"
-            }
-          }
-        },
-        {
-          "type": "hysteria2",
-          "tag": "my-hy2",
-          "server": "1.2.3.6",
-          "server_ports": [
-            "20000:50000"
-          ],
-          "hop_interval": "15s",
-          "password": "YOUR_HYSTERIA2_PASSWORD",
-          "tls": {
-            "enabled": true,
-            "server_name": "example.com",
-            "insecure": false
-          }
-        }
-      ]
-    },
-    {
-      "name": "sub-only",
-      "secret_key": "YOUR_SECRET_KEY_2",
+  "profiles": {
+    "full": {
+      "token": "YOUR_SECRET_TOKEN_1",
       "subscriptions": [
         "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN",
         {
@@ -77,7 +12,24 @@
             "Proxy"
           ]
         }
+      ],
+      "custom_nodes": [
+        {
+          "node": "vless://00000000-0000-0000-0000-000000000000@1.2.3.4:443?security=reality&sni=example.com&fp=chrome&pbk=YOUR_REALITY_PUBLIC_KEY&sid=00000000&flow=xtls-rprx-vision#my-vless",
+          "groups": [
+            "AI",
+            "Proxy"
+          ]
+        },
+        "vmess://eyJ2IjoiMiIsInBzIjoibXktdm1lc3MiLCJhZGQiOiIxLjIuMy41IiwicG9ydCI6ODA4MCwiaWQiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJhaWQiOjAsInNjeSI6ImF1dG8iLCJuZXQiOiJ3cyIsInR5cGUiOiJub25lIiwiaG9zdCI6ImV4YW1wbGUuY29tIiwicGF0aCI6Ii93cyJ9",
+        "hysteria2://YOUR_HY2_PASSWORD@1.2.3.6:443?sni=example.com&mport=20000-50000#my-hy2"
+      ]
+    },
+    "sub-only": {
+      "token": "YOUR_SECRET_TOKEN_2",
+      "subscriptions": [
+        "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN"
       ]
     }
-  ]
+  }
 }
