@@ -3,6 +3,7 @@ import configSchema from './schema.json';
 import { Env, Profile, RelayConfig } from './types';
 import { fetchSubscriptions } from './fetcher';
 import { assemble } from './assemble';
+import { fetchProfileUsage, formatUsageText } from './usage';
 
 export function timingSafeEqual(a: string, b: string): boolean {
   if (typeof a !== 'string' || typeof b !== 'string') {
@@ -87,14 +88,21 @@ export default {
       });
     }
 
-    // 2. Extract mode and secret key from path or query
+    // 2. Extract action/mode and secret key from path or query
+    let isUsage = false;
     let mode = url.searchParams.get('mode') || 'tun';
     let key = url.searchParams.get('key') || '';
 
     if (parts.length === 1) {
       key = parts[0];
     } else if (parts.length === 2) {
-      if (parts[0] === 'tun' || parts[0] === 'tproxy') {
+      if (parts[0] === 'usage') {
+        isUsage = true;
+        key = parts[1];
+      } else if (parts[1] === 'usage') {
+        isUsage = true;
+        key = parts[0];
+      } else if (parts[0] === 'tun' || parts[0] === 'tproxy') {
         mode = parts[0];
         key = parts[1];
       } else if (parts[1] === 'tun' || parts[1] === 'tproxy') {
@@ -114,10 +122,50 @@ export default {
       return new Response('Not Found\n', { status: 404 });
     }
 
-    const targetMode = mode || profile.inbound_mode || 'tun';
     const relay = profile.relay || appConfig.relay;
 
-    // 4. Fetch subscriptions & assemble sing-box configuration
+    // 4. Handle /usage query (Plaintext by default, JSON on ?json / ?format=json)
+    if (isUsage) {
+      try {
+        const wantsJson =
+          url.searchParams.get('format') === 'json' ||
+          url.searchParams.has('json') ||
+          (request.headers.get('accept')?.includes('application/json') &&
+            !request.headers.get('accept')?.includes('text/html') &&
+            !request.headers.get('user-agent')?.includes('curl'));
+
+        const usageData = await fetchProfileUsage(profile.name, profile.subscriptions || [], relay);
+
+        if (wantsJson) {
+          return new Response(JSON.stringify(usageData, null, 2), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Cache-Control': 'no-cache',
+            },
+          });
+        }
+
+        const textOutput = formatUsageText(usageData);
+        return new Response(textOutput, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+          },
+        });
+      } catch (err: any) {
+        console.error('[aptor] usage fetch error:', err);
+        return new Response(`Error: ${err?.message || 'Usage fetch failed'}\n`, {
+          status: 500,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      }
+    }
+
+    const targetMode = mode || profile.inbound_mode || 'tun';
+
+    // 5. Fetch subscriptions & assemble sing-box configuration
     try {
       const subNodes = await fetchSubscriptions(profile.subscriptions || [], relay);
       const output = assemble({
