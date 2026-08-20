@@ -69,13 +69,9 @@ export async function fetchSubscription(
   const rawNodes = parseSubscriptionContent(text);
 
   return rawNodes.map(node => {
-    let tag = node.tag;
-    if (sub.tag_prefix && tag && typeof tag === 'string') {
-      tag = `${sub.tag_prefix}${tag}`;
-    }
     return {
       ...node,
-      ...(tag && { tag }),
+      ...(sub.tag_prefix && { _tag_prefix: sub.tag_prefix }),
       _groups: sub.groups,
     };
   });

@@ -61,14 +61,17 @@ export function normalizeNodes(nodes: Record<string, any>[]): Record<string, any
       }
     }
 
-    const key = `${reg}-${protoCode}`;
+    const prefix = node._tag_prefix || '';
+    const key = `${prefix}${reg}-${protoCode}`;
     const count = (counters.get(key) ?? 0) + 1;
     counters.set(key, count);
 
-    clean.push({
+    const cleanNode: Record<string, any> = {
       ...node,
       tag: `${key}-${String(count).padStart(2, '0')}`,
-    });
+    };
+    delete cleanNode._tag_prefix;
+    clean.push(cleanNode);
   }
 
   return clean;

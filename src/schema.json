@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aptor Configuration",
+  "description": "Configuration schema for Aptor sing-box subscription converter",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON schema reference URL"
+    },
+    "relay": {
+      "type": "object",
+      "description": "Universal Relay Proxy configuration for bypassing WAF/Cloudflare IP blocks",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The base URL of the Relay endpoint (e.g. https://relay.s4r.in)"
+        },
+        "token": {
+          "type": "string",
+          "description": "Bearer token used for Relay authorization"
+        }
+      },
+      "required": ["url"]
+    },
+    "profiles": {
+      "type": "object",
+      "description": "Map of subscription profiles keyed by profile name",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name of the profile"
+          },
+          "token": {
+            "type": "string",
+            "description": "Secret token for accessing this profile via URL"
+          },
+          "secret_key": {
+            "type": "string",
+            "description": "Alias for token"
+          },
+          "inbound_mode": {
+            "type": "string",
+            "enum": ["tun", "tproxy"],
+            "default": "tun",
+            "description": "Inbound proxy mode"
+          },
+          "subscriptions": {
+            "type": "array",
+            "description": "List of subscription URLs or subscription objects",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Subscription URL"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "Subscription URL"
+                    },
+                    "tag_prefix": {
+                      "type": "string",
+                      "description": "Prefix prepended to node tags (e.g. 'aws-')"
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Outbound selector groups this subscription joins (e.g. ['AI', 'Proxy'])"
+                    }
+                  },
+                  "required": ["url"]
+                }
+              ]
+            }
+          },
+          "custom_nodes": {
+            "type": "array",
+            "description": "Custom static nodes (URI links or sing-box objects)",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Node URI (vless://, vmess://, trojan://, ss://, hy2://)"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "node": {
+                      "type": "string",
+                      "description": "Node URI link"
+                    },
+                    "uri": {
+                      "type": "string",
+                      "description": "Node URI link alias"
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Groups this custom node joins"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "description": "Standard Sing-Box outbound object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "tag": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type", "tag"]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

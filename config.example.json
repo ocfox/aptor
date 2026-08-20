@@ -1,4 +1,9 @@
 {
+  "$schema": "https://aptor.s4r.in/schema.json",
+  "relay": {
+    "url": "https://relay.s4r.in",
+    "token": "YOUR_RELAY_TOKEN"
+  },
   "profiles": {
     "full": {
       "token": "YOUR_SECRET_TOKEN_1",
@@ -6,7 +11,7 @@
         "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN",
         {
           "url": "https://example.com/api/v1/ai-subscription",
-          "tag_prefix": "AI-",
+          "tag_prefix": "aws-",
           "groups": [
             "AI",
             "Proxy"

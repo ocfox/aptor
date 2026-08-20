@@ -1,4 +1,5 @@
 import rawConfig from '../config.json';
+import configSchema from './schema.json';
 import { Env, Profile, RelayConfig } from './types';
 import { fetchSubscriptions } from './fetcher';
 import { assemble } from './assemble';
@@ -68,11 +69,21 @@ export default {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
 
-    // 1. Health check
+    // 1. Health check & Schema endpoints
     if (parts[0] === 'health' || parts[0] === 'healthz') {
       return new Response('OK\n', {
         status: 200,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    }
+
+    if (parts[0] === 'schema' || parts[0] === 'schema.json') {
+      return new Response(JSON.stringify(configSchema, null, 2), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/schema+json; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+        },
       });
     }
 
