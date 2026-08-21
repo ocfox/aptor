@@ -69,7 +69,6 @@ export function assemble({
         address: ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
         mtu: 1500,
         auto_route: true,
-        auto_redirect: true,
         strict_route: true,
         stack: 'mixed',
       },
