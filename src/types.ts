@@ -2,6 +2,8 @@ export interface SubscriptionObject {
   url: string;
   tag_prefix?: string;
   groups?: string[];
+  exclude?: string | string[];
+  include?: string | string[];
 }
 
 export type SubscriptionInput = string | SubscriptionObject;
@@ -10,11 +12,15 @@ export interface NormalizedSubscription {
   url: string;
   tag_prefix?: string;
   groups: string[];
+  exclude?: string[];
+  include?: string[];
 }
 
 export interface CustomNodeObject {
   node?: string;
   uri?: string;
+  tag?: string;
+  detour?: string;
   groups?: string[];
   [key: string]: any;
 }

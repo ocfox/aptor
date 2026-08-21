@@ -26,12 +26,18 @@ export function normalizeCustomNodes(customNodes: CustomNodeInput[]): Record<str
         if (parsed) {
           result.push({
             ...parsed,
+            ...(item.tag && { tag: item.tag }),
+            ...(item.detour && { detour: item.detour }),
             _groups: item.groups && item.groups.length > 0 ? item.groups : ['Proxy'],
           });
         }
       } else if (item.type) {
         // Direct sing-box node object
-        result.push(JSON.parse(JSON.stringify(item)));
+        const nodeObj = JSON.parse(JSON.stringify(item));
+        if (item.groups) {
+          nodeObj._groups = item.groups;
+        }
+        result.push(nodeObj);
       }
     }
   }
@@ -121,23 +127,63 @@ export function assemble({
   }
 
   // 3. Resolve Outbound Selectors
-  const proxyTags = groupTags['Proxy']?.length ? groupTags['Proxy'] : allTags;
+  const standardSelectorTags = new Set(['Proxy', 'AI', 'Others', 'CN', 'direct', 'block']);
+  const customGroupNames = Object.keys(groupTags).filter(g => !standardSelectorTags.has(g));
 
-  let defNode = 'direct';
-  if (proxyTags.includes('light')) {
-    defNode = 'light';
-  } else if (proxyTags.length > 0) {
-    defNode = proxyTags[0];
+  // Custom selectors (e.g. 'Chest', 'DingDong', 'Transit', etc.)
+  const customSelectors: Record<string, any>[] = [];
+  for (const g of customGroupNames) {
+    const tags = groupTags[g];
+    if (!tags || tags.length === 0) continue;
+    customSelectors.push({
+      type: 'selector',
+      tag: g,
+      outbounds: tags,
+      default: tags[0],
+    });
   }
 
+  // Resolve Proxy tags & default
+  const baseProxyTags = groupTags['Proxy']?.length ? groupTags['Proxy'] : (customGroupNames.length === 0 ? allTags : []);
+  const proxyOutboundsSet = new Set<string>();
+  for (const cg of customGroupNames) {
+    proxyOutboundsSet.add(cg);
+  }
+  for (const t of baseProxyTags) {
+    proxyOutboundsSet.add(t);
+  }
+  proxyOutboundsSet.add('direct');
+  const proxyOutbounds = Array.from(proxyOutboundsSet);
+
+  let defNode = 'direct';
+  if (customGroupNames.includes('Chest')) {
+    defNode = 'Chest';
+  } else if (proxyOutbounds.includes('light')) {
+    defNode = 'light';
+  } else if (proxyOutbounds.includes('chest')) {
+    defNode = 'chest';
+  } else if (proxyOutbounds.length > 0) {
+    defNode = proxyOutbounds[0];
+  }
+
+  // Resolve AI tags & default
   let aiOutbounds: string[];
   let aiDef: string;
   const aiTags = groupTags['AI'];
-  if (aiTags && aiTags.length > 0) {
-    aiOutbounds = [...aiTags, 'Proxy', 'direct'];
+  if (customGroupNames.includes('Chest')) {
+    const aiSet = new Set<string>(['Chest']);
+    if (aiTags) {
+      for (const t of aiTags) aiSet.add(t);
+    }
+    aiSet.add('Proxy');
+    aiSet.add('direct');
+    aiOutbounds = Array.from(aiSet);
+    aiDef = 'Chest';
+  } else if (aiTags && aiTags.length > 0) {
+    aiOutbounds = Array.from(new Set([...aiTags, 'Proxy', 'direct']));
     aiDef = aiTags[0];
   } else {
-    aiOutbounds = [defNode, 'Proxy'];
+    aiOutbounds = Array.from(new Set([defNode, 'Proxy', 'direct']));
     aiDef = defNode;
   }
 
@@ -150,7 +196,7 @@ export function assemble({
     {
       type: 'selector',
       tag: 'Proxy',
-      outbounds: [...proxyTags, 'direct'],
+      outbounds: proxyOutbounds,
       default: defNode,
     },
     {
@@ -159,6 +205,7 @@ export function assemble({
       outbounds: aiOutbounds,
       default: aiDef,
     },
+    ...customSelectors,
     {
       type: 'selector',
       tag: 'Others',

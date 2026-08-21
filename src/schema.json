@@ -73,6 +73,20 @@
                         "type": "string"
                       },
                       "description": "Outbound selector groups this subscription joins (e.g. ['AI', 'Proxy'])"
+                    },
+                    "exclude": {
+                      "oneOf": [
+                        { "type": "string" },
+                        { "type": "array", "items": { "type": "string" } }
+                      ],
+                      "description": "Keywords or patterns to exclude node tags"
+                    },
+                    "include": {
+                      "oneOf": [
+                        { "type": "string" },
+                        { "type": "array", "items": { "type": "string" } }
+                      ],
+                      "description": "Keywords or patterns to include only matching node tags"
                     }
                   },
                   "required": ["url"]
@@ -99,6 +113,14 @@
                     "uri": {
                       "type": "string",
                       "description": "Node URI link alias"
+                    },
+                    "tag": {
+                      "type": "string",
+                      "description": "Node tag name override"
+                    },
+                    "detour": {
+                      "type": "string",
+                      "description": "Detour outbound tag for chain proxy"
                     },
                     "groups": {
                       "type": "array",

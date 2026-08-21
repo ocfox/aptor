@@ -35,6 +35,30 @@
       "subscriptions": [
         "https://example.com/api/v1/subscription?token=YOUR_SUBSCRIPTION_TOKEN"
       ]
+    },
+    "landing-chain": {
+      "token": "YOUR_SECRET_TOKEN_3",
+      "subscriptions": [
+        {
+          "url": "https://example.com/api/v1/transit-subscription",
+          "tag_prefix": "transit-",
+          "groups": [
+            "Transit",
+            "Proxy"
+          ]
+        }
+      ],
+      "custom_nodes": [
+        {
+          "node": "vless://00000000-0000-0000-0000-000000000000@1.2.3.4:443?security=reality&sni=example.com&fp=chrome&pbk=YOUR_REALITY_PUBLIC_KEY&sid=00000000&flow=xtls-rprx-vision#landing-node",
+          "detour": "Transit",
+          "groups": [
+            "Chest",
+            "AI",
+            "Proxy"
+          ]
+        }
+      ]
     }
   }
 }

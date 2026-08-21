@@ -5,10 +5,17 @@ export function normalizeSubscription(sub: SubscriptionInput): NormalizedSubscri
   if (typeof sub === 'string') {
     return { url: sub, groups: ['Proxy'] };
   }
+  const toArray = (v?: string | string[]) => {
+    if (!v) return undefined;
+    return Array.isArray(v) ? v.filter(Boolean) : [v];
+  };
+
   return {
     url: sub.url,
     tag_prefix: sub.tag_prefix,
     groups: sub.groups && sub.groups.length > 0 ? sub.groups : ['Proxy'],
+    exclude: toArray(sub.exclude),
+    include: toArray(sub.include),
   };
 }
 
@@ -66,7 +73,26 @@ export async function fetchSubscription(
     throw directError;
   }
 
-  const rawNodes = parseSubscriptionContent(text);
+  let rawNodes = parseSubscriptionContent(text);
+
+  // Apply subscription-level exclude / include filters
+  if (sub.exclude && sub.exclude.length > 0) {
+    rawNodes = rawNodes.filter(node => {
+      const tag = String(node.tag || '');
+      const server = String(node.server || '');
+      const text = `${tag} ${server}`.toLowerCase();
+      return !sub.exclude!.some(kw => text.includes(kw.toLowerCase()));
+    });
+  }
+
+  if (sub.include && sub.include.length > 0) {
+    rawNodes = rawNodes.filter(node => {
+      const tag = String(node.tag || '');
+      const server = String(node.server || '');
+      const text = `${tag} ${server}`.toLowerCase();
+      return sub.include!.some(kw => text.includes(kw.toLowerCase()));
+    });
+  }
 
   return rawNodes.map(node => {
     return {
